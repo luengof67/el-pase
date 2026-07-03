@@ -713,19 +713,49 @@ function renderBiblio(){
 }
 
 // ---------- Exportar / Importar (copia a Drive vía descarga/compartir) ----------
-function exportarJSON(){
+// Comparte un archivo en móvil (menú nativo de Android) con dobles redes:
+// PC → descarga directa · Móvil → compartir archivo · si no, compartir texto.
+async function compartirOGuardar(blob, nombre, textoFallback){
+  // PC/navegador: descarga directa de siempre
+  if(!esNativo()){
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = nombre;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return "descargado";
+  }
+  // Móvil: intentar compartir el archivo real
+  try{
+    const file = new File([blob], nombre, { type: blob.type });
+    if(navigator.canShare && navigator.canShare({ files: [file] })){
+      await navigator.share({ files: [file], title: "EL PASE" });
+      return "compartido";
+    }
+  }catch(e){
+    if(e && e.name === "AbortError") return "cancelado";
+  }
+  // Móvil, fallback: compartir como texto (infalible)
+  if(textoFallback && navigator.share){
+    try{
+      await navigator.share({ title: "EL PASE · Biblioteca", text: textoFallback });
+      return "compartido-texto";
+    }catch(e){
+      if(e && e.name === "AbortError") return "cancelado";
+    }
+  }
+  return "fallido";
+}
+
+async function exportarJSON(){
   const arr = leerBiblio();
   if(!arr.length){ alert("La biblioteca está vacía, no hay nada que exportar."); return; }
   const contenido = { app: "EL PASE", version: 1, exportado: new Date().toISOString(), platos: arr };
-  const blob = new Blob([JSON.stringify(contenido, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "el-pase-biblioteca-" + new Date().toISOString().slice(0, 10) + ".json";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  const json = JSON.stringify(contenido, null, 2);
+  const blob = new Blob([json], { type: "application/json" });
+  const nombre = "el-pase-biblioteca-" + new Date().toISOString().slice(0, 10) + ".json";
+  const r = await compartirOGuardar(blob, nombre, json);
+  if(r === "fallido") alert("No se pudo compartir en este dispositivo. Prueba a sincronizar con la nube.");
 }
 
 function importarJSON(input){
@@ -842,7 +872,7 @@ function esNativo(){
   return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 }
 
-function generarPDF(platos, nombreArchivo){
+async function generarPDF(platos, nombreArchivo){
   if(!platos || !platos.length){ alert("No hay nada que imprimir."); return; }
   if(!window.jspdf){ alert("No se pudo cargar el generador de PDF. Revisa la conexión."); return; }
 
@@ -895,11 +925,17 @@ function generarPDF(platos, nombreArchivo){
     if(p.alergenos && p.alergenos.length){ texto("Alérgenos: " + p.alergenos.join(", "), 9, [110, 90, 60]); }
   });
 
+  const archivo = nombreArchivo || "el-pase.pdf";
   try{
-    doc.save(nombreArchivo || "el-pase.pdf");
-    if(esNativo()) setEstado("PDF guardado en Descargas: " + (nombreArchivo || "el-pase.pdf"));
+    if(esNativo()){
+      const blob = doc.output("blob");
+      const r = await compartirOGuardar(blob, archivo, null);
+      if(r === "fallido"){ doc.save(archivo); setEstado("PDF guardado en Descargas: " + archivo); }
+    }else{
+      doc.save(archivo);
+    }
   }catch(e){
-    alert("No se pudo generar el PDF: " + e.message);
+    try{ doc.save(archivo); }catch(_){ alert("No se pudo generar el PDF: " + e.message); }
   }
 }
 
