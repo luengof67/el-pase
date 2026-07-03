@@ -404,20 +404,39 @@ function setEstado(txt, esError = false, cursor = false){
   e.className = "estado" + (esError ? " error" : "") + (cursor ? " parpadeo" : "");
 }
 
+let ultimaConfig = null;
+let nombresPrevios = [];
+let tendenciasCache = "";
+
 async function generar(){
   const ingredientes = $("ingredientes").value.trim();
   if(!ingredientes){
     setEstado("Indica al menos un ingrediente principal.", true);
     return;
   }
-  const tipo    = $("tipo").value;
-  const destino = $("destino").value;
-  const coste   = $("coste").value;
-  const estilo  = $("estilo").value;
-  const notas   = $("notas").value.trim();
+  ultimaConfig = {
+    ingredientes,
+    tipo: $("tipo").value,
+    destino: $("destino").value,
+    coste: $("coste").value,
+    estilo: $("estilo").value,
+    notas: $("notas").value.trim()
+  };
+  nombresPrevios = [];
+  tendenciasCache = "";
+  await ejecutarPase(false);
+}
+
+async function otraRonda(){
+  if(!ultimaConfig){ setEstado("Primero canta un pase.", true); return; }
+  await ejecutarPase(true);
+}
+
+async function ejecutarPase(esOtraRonda){
+  const { ingredientes, tipo, destino, coste, estilo, notas } = ultimaConfig;
 
   $("btnGenerar").disabled = true;
-  $("resultados").innerHTML = "";
+  document.querySelectorAll("#resultados .barra-acciones button").forEach(b => b.disabled = true);
 
   const contexto = `- Ingredientes principales: ${ingredientes}
 - Tipo de plato: ${tipo}
@@ -427,31 +446,37 @@ ${coste ? `- Coste objetivo por ración: ${coste} € (ajústate a él)` : "- Co
 ${notas ? `- Notas: ${notas}` : ""}`;
 
   try{
-    // ---------- FASE 1: investigación de tendencias (con búsqueda web) ----------
-    setEstado("Fase 1/2 · Investigando tendencias", false, true);
-    let tendencias = "";
-    try{
-      const r1 = await llamarAPI({
-        max_tokens: 1000,
-        messages:[{ role:"user", content:
+    // ---------- FASE 1: investigación (solo la primera vez; se cachea) ----------
+    if(!tendenciasCache){
+      setEstado(esOtraRonda ? "Otra ronda · buscando ideas" : "Fase 1/2 · Investigando tendencias", false, true);
+      try{
+        const r1 = await llamarAPI({
+          max_tokens: 1000,
+          messages:[{ role:"user", content:
 `Busca en la web tendencias gastronómicas actuales (2026) relevantes para restaurantes en España sobre: estilo ${estilo}, platos tipo ${tipo}, ingredientes ${ingredientes}.
 Responde SOLO con 4 puntos muy breves (una línea cada uno) resumiendo técnicas, presentaciones o combinaciones en tendencia. Sin introducción ni cierre.` }],
-        tools:[{ type:"web_search_20250305", name:"web_search" }]
-      });
-      tendencias = (r1.content || []).filter(b => b.type === "text").map(b => b.text).join("\n").trim();
-    }catch(e){
-      console.warn("Investigación no disponible, continúo sin ella:", e.message);
+          tools:[{ type:"web_search_20250305", name:"web_search" }]
+        });
+        tendenciasCache = (r1.content || []).filter(b => b.type === "text").map(b => b.text).join("\n").trim();
+      }catch(e){
+        console.warn("Investigación no disponible, continúo sin ella:", e.message);
+      }
     }
+    const tendencias = tendenciasCache;
 
-    // ---------- FASE 2: generación de platos (solo JSON, sin herramientas) ----------
-    setEstado("Fase 2/2 · Componiendo los platos", false, true);
+    // ---------- FASE 2: generación de platos ----------
+    setEstado(esOtraRonda ? "Otra ronda · creando 4 platos distintos" : "Fase 2/2 · Componiendo los platos", false, true);
+    const evitar = nombresPrevios.length
+      ? `\nIMPORTANTE: NO repitas ni te parezcas a estos platos ya propuestos: ${nombresPrevios.join("; ")}. Propón enfoques, técnicas, cortes e ingredientes secundarios claramente distintos.`
+      : "";
+
     const r2 = await llamarAPI({
       max_tokens: 8000,
       messages:[{ role:"user", content:
 `Eres un chef ejecutivo asesor de I+D para restaurantes en España.
 ${tendencias ? "Tendencias actuales investigadas:\n" + tendencias + "\n" : ""}
 Crea 4 platos gourmet originales y bien diferenciados entre sí con estos parámetros:
-${contexto}
+${contexto}${evitar}
 
 Responde ÚNICAMENTE con un objeto JSON válido, sin markdown, sin comentarios, sin texto antes ni después. Estructura exacta:
 {"platos":[{"nombre":"","categoria":"","descripcionCarta":"frase evocadora estilo carta","ingredientes":[{"nombre":"","cantidad":"por ración","coste":"€ aprox"}],"elaboracion":["paso 1","paso 2"],"emplatado":"presentación: vajilla, disposición, alturas, salsas, acabados","costeRacion":"€","pvpSugerido":"€","foodCost":"%","maridaje":"","alergenos":["..."]}]}
@@ -468,11 +493,11 @@ Máximo 6 ingredientes y 5 pasos por plato. Textos concisos para que el JSON que
       throw new Error("La respuesta llegó incompleta. Pulsa de nuevo para reintentar.");
     }
 
-    // Etiqueta canónica para agrupar en la biblioteca (independiente del texto libre de la IA)
-    platos.forEach(p => p.grupo = tipo);
+    platos.forEach(p => { p.grupo = tipo; nombresPrevios.push(p.nombre); });
 
     pintarComandas(platos);
-    setEstado("Servicio listo. " + platos.length + " sugerencias en el pase." + (tendencias ? "" : " (sin investigación web esta vez)"));
+    const ronda = esOtraRonda ? "Nueva ronda: " : "Servicio listo. ";
+    setEstado(ronda + platos.length + " sugerencias en el pase." + (tendencias ? "" : " (sin investigación web esta vez)"));
   }catch(err){
     console.error(err);
     setEstado("⚠ " + err.message, true);
@@ -617,7 +642,8 @@ function pintarComandas(platos){
   barra.className = "barra-acciones no-print";
   barra.style.marginBottom = "6px";
   barra.innerHTML =
-    `<button class="btn-accion primario" onclick="guardarLote()">💾 Guardar todo en biblioteca</button>
+    `<button class="btn-accion primario" onclick="otraRonda()">🔄 Otra ronda</button>
+     <button class="btn-accion" onclick="guardarLote()">💾 Guardar todo en biblioteca</button>
      <button class="btn-accion" onclick="imprimirResultados()">🖨 Imprimir / PDF</button>`;
   cont.appendChild(barra);
 
