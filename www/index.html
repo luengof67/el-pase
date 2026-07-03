@@ -713,9 +713,18 @@ function renderBiblio(){
 }
 
 // ---------- Exportar / Importar (copia a Drive vía descarga/compartir) ----------
-// Comparte un archivo en móvil (menú nativo de Android) con dobles redes:
-// PC → descarga directa · Móvil → compartir archivo · si no, compartir texto.
-async function compartirOGuardar(blob, nombre, textoFallback){
+// Convierte un Blob a base64 (sin el prefijo data:)
+function blobABase64(blob){
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onloadend = () => resolve(String(r.result).split(",")[1]);
+    r.onerror = reject;
+    r.readAsDataURL(blob);
+  });
+}
+
+// PC → descarga directa · Móvil → plugin nativo FileSharer (guarda y comparte).
+async function compartirOGuardar(blob, nombre, contentType){
   // PC/navegador: descarga directa de siempre
   if(!esNativo()){
     const url = URL.createObjectURL(blob);
@@ -725,26 +734,17 @@ async function compartirOGuardar(blob, nombre, textoFallback){
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     return "descargado";
   }
-  // Móvil: intentar compartir el archivo real
+  // Móvil: plugin nativo (guarda de verdad y abre el menú de compartir)
   try{
-    const file = new File([blob], nombre, { type: blob.type });
-    if(navigator.canShare && navigator.canShare({ files: [file] })){
-      await navigator.share({ files: [file], title: "EL PASE" });
-      return "compartido";
-    }
+    const base64 = await blobABase64(blob);
+    const FileSharer = window.Capacitor.Plugins.FileSharer;
+    await FileSharer.share({ filename: nombre, contentType: contentType, base64Data: base64 });
+    return "compartido";
   }catch(e){
-    if(e && e.name === "AbortError") return "cancelado";
+    const msg = (e && (e.message || e.code || "")) + "";
+    if(/cancel/i.test(msg)) return "cancelado";
+    return "fallido:" + msg;
   }
-  // Móvil, fallback: compartir como texto (infalible)
-  if(textoFallback && navigator.share){
-    try{
-      await navigator.share({ title: "EL PASE · Biblioteca", text: textoFallback });
-      return "compartido-texto";
-    }catch(e){
-      if(e && e.name === "AbortError") return "cancelado";
-    }
-  }
-  return "fallido";
 }
 
 async function exportarJSON(){
@@ -754,8 +754,8 @@ async function exportarJSON(){
   const json = JSON.stringify(contenido, null, 2);
   const blob = new Blob([json], { type: "application/json" });
   const nombre = "el-pase-biblioteca-" + new Date().toISOString().slice(0, 10) + ".json";
-  const r = await compartirOGuardar(blob, nombre, json);
-  if(r === "fallido") alert("No se pudo compartir en este dispositivo. Prueba a sincronizar con la nube.");
+  const r = await compartirOGuardar(blob, nombre, "application/json");
+  if(r && r.indexOf("fallido") === 0) alert("No se pudo compartir: " + r.slice(8));
 }
 
 function importarJSON(input){
@@ -927,15 +927,11 @@ async function generarPDF(platos, nombreArchivo){
 
   const archivo = nombreArchivo || "el-pase.pdf";
   try{
-    if(esNativo()){
-      const blob = doc.output("blob");
-      const r = await compartirOGuardar(blob, archivo, null);
-      if(r === "fallido"){ doc.save(archivo); setEstado("PDF guardado en Descargas: " + archivo); }
-    }else{
-      doc.save(archivo);
-    }
+    const blob = doc.output("blob");
+    const r = await compartirOGuardar(blob, archivo, "application/pdf");
+    if(r && r.indexOf("fallido") === 0) alert("No se pudo compartir el PDF: " + r.slice(8));
   }catch(e){
-    try{ doc.save(archivo); }catch(_){ alert("No se pudo generar el PDF: " + e.message); }
+    alert("No se pudo generar el PDF: " + e.message);
   }
 }
 

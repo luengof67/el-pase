@@ -25,12 +25,31 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        run: npm install --legacy-peer-deps
+        run: npm install
 
       - name: Add Android platform
         run: |
           npx cap add android || echo "Android ya existe"
           npx cap sync android
+
+      - name: Patch MainActivity for filesharer
+        run: |
+          cat > android/app/src/main/java/com/joseluengo/elpase/MainActivity.java <<'EOF'
+          package com.joseluengo.elpase;
+
+          import android.os.Bundle;
+          import com.getcapacitor.BridgeActivity;
+
+          public class MainActivity extends BridgeActivity {
+              @Override
+              public void onSaveInstanceState(Bundle outState) {
+                  super.onSaveInstanceState(outState);
+                  outState.clear();
+              }
+          }
+          EOF
+          echo "MainActivity actualizado:"
+          cat android/app/src/main/java/com/joseluengo/elpase/MainActivity.java
 
       - name: Decode keystore
         run: |
