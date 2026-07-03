@@ -236,6 +236,45 @@
   }
   .sync-info.ok{color:var(--oliva);}
   .sync-info.error{color:var(--rojo);}
+  .biblio-buscar{
+    width:100%;margin-top:12px;background:var(--fondo);border:1px solid var(--panel-borde);
+    border-radius:8px;color:var(--texto);font-family:'Work Sans',sans-serif;font-size:15px;padding:11px 12px;
+  }
+  .biblio-buscar:focus{border-color:var(--cobre);outline:none;}
+
+  /* ---------- MODAL DE EDICIÓN ---------- */
+  .modal-fondo{
+    position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;
+    display:none;align-items:flex-start;justify-content:center;overflow-y:auto;padding:24px 12px;
+  }
+  .modal-fondo.abierto{display:flex;}
+  .modal{
+    background:var(--panel);border:1px solid var(--panel-borde);border-radius:14px;
+    width:100%;max-width:560px;padding:22px 20px 24px;margin:auto;
+  }
+  .modal h2{font-family:'Fraunces',serif;font-size:22px;margin-bottom:16px;}
+  .modal label{display:block;margin:14px 0 5px;}
+  .modal input, .modal textarea{
+    width:100%;background:var(--fondo);border:1px solid var(--panel-borde);border-radius:8px;
+    color:var(--texto);font-family:'Work Sans',sans-serif;font-size:14px;padding:9px 11px;
+  }
+  .modal input:focus, .modal textarea:focus{border-color:var(--cobre);outline:none;}
+  .modal textarea{resize:vertical;min-height:52px;}
+  .ed-fila{display:flex;gap:6px;margin-bottom:6px;align-items:center;}
+  .ed-fila input{flex:1;}
+  .ed-fila button{
+    background:var(--rojo);border:none;color:#fff;border-radius:6px;width:32px;height:34px;
+    cursor:pointer;flex:0 0 auto;font-size:16px;
+  }
+  .ed-add{
+    background:none;border:1px dashed var(--panel-borde);color:var(--cobre-claro);
+    border-radius:6px;padding:7px 12px;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:12px;margin-top:4px;
+  }
+  .modal-acciones{display:flex;gap:10px;margin-top:22px;}
+  .modal-acciones button{flex:1;border:none;border-radius:9px;padding:13px;font-family:'Fraunces',serif;font-weight:700;font-size:16px;cursor:pointer;}
+  .btn-guardar-ed{background:var(--cobre);color:#1A130A;}
+  .btn-cancelar-ed{background:var(--panel-borde);color:var(--texto);}
+  .ed-triple{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
 
   @media(max-width:640px){
     .form-grid{grid-template-columns:1fr;}
@@ -361,8 +400,58 @@
       </div>
     </div>
     <div class="sync-info no-print" id="syncInfo"></div>
+    <input type="search" id="biblioBuscar" class="biblio-buscar no-print" placeholder="🔍 Buscar por nombre, ingrediente o categoría…" oninput="renderBiblio()">
     <div id="biblioContenido"></div>
   </section>
+
+  <div class="modal-fondo" id="modalEdit">
+    <div class="modal">
+      <h2>Editar plato</h2>
+      <input type="hidden" id="edId">
+      <label for="edNombre">Nombre</label>
+      <input id="edNombre" type="text">
+      <label for="edCategoria">Categoría (texto de carta)</label>
+      <input id="edCategoria" type="text">
+      <label for="edDesc">Descripción de carta</label>
+      <textarea id="edDesc"></textarea>
+
+      <label>Ingredientes (nombre · cantidad · coste)</label>
+      <div id="edIngredientes"></div>
+      <button class="ed-add" onclick="edAddIngrediente()">+ Añadir ingrediente</button>
+
+      <label>Elaboración (un paso por línea)</label>
+      <div id="edPasos"></div>
+      <button class="ed-add" onclick="edAddPaso()">+ Añadir paso</button>
+
+      <label for="edEmplatado">Emplatado</label>
+      <textarea id="edEmplatado"></textarea>
+
+      <div class="ed-triple">
+        <div>
+          <label for="edCoste">Coste ración</label>
+          <input id="edCoste" type="text">
+        </div>
+        <div>
+          <label for="edPvp">PVP</label>
+          <input id="edPvp" type="text">
+        </div>
+        <div>
+          <label for="edFood">Food cost</label>
+          <input id="edFood" type="text">
+        </div>
+      </div>
+
+      <label for="edMaridaje">Maridaje</label>
+      <input id="edMaridaje" type="text">
+      <label for="edAlergenos">Alérgenos (separados por comas)</label>
+      <input id="edAlergenos" type="text">
+
+      <div class="modal-acciones">
+        <button class="btn-cancelar-ed" onclick="cerrarEditor()">Cancelar</button>
+        <button class="btn-guardar-ed" onclick="guardarEdicion()">Guardar cambios</button>
+      </div>
+    </div>
+  </div>
 </main>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -622,10 +711,13 @@ function crearComandaEl(p, modo, numero){
     bGuardar.onclick = () => guardarPlato(p, bGuardar);
     acc.append(bGuardar, bImp);
   }else{
+    const bEditar = document.createElement("button");
+    bEditar.textContent = "✏️ Editar";
+    bEditar.onclick = () => abrirEditor(p.id);
     const bQuitar = document.createElement("button");
     bQuitar.textContent = "🗑 Quitar";
     bQuitar.onclick = () => { if(confirm("¿Quitar «" + p.nombre + "» de la biblioteca?")) eliminarPlato(p.id); };
-    acc.append(bImp, bQuitar);
+    acc.append(bEditar, bImp, bQuitar);
   }
   div.appendChild(acc);
   return div;
@@ -700,14 +792,113 @@ function vaciarBiblio(){
   }
 }
 
-function renderBiblio(){
+// ---------- Editor de platos ----------
+function edFilaIngrediente(ing){
+  ing = ing || { nombre: "", cantidad: "", coste: "" };
+  const div = document.createElement("div");
+  div.className = "ed-fila";
+  div.innerHTML =
+    `<input placeholder="Ingrediente" value="${esc(ing.nombre)}">
+     <input placeholder="Cantidad" value="${esc(ing.cantidad)}" style="max-width:90px;">
+     <input placeholder="Coste" value="${esc(ing.coste)}" style="max-width:70px;">
+     <button title="Quitar">×</button>`;
+  div.querySelector("button").onclick = () => div.remove();
+  return div;
+}
+function edFilaPaso(txt){
+  const div = document.createElement("div");
+  div.className = "ed-fila";
+  div.innerHTML = `<input placeholder="Paso" value="${esc(txt || "")}"><button title="Quitar">×</button>`;
+  div.querySelector("button").onclick = () => div.remove();
+  return div;
+}
+function edAddIngrediente(){ $("edIngredientes").appendChild(edFilaIngrediente()); }
+function edAddPaso(){ $("edPasos").appendChild(edFilaPaso()); }
+
+function abrirEditor(id){
+  const p = leerBiblio().find(x => x.id === id);
+  if(!p) return;
+  $("edId").value = p.id;
+  $("edNombre").value = p.nombre || "";
+  $("edCategoria").value = p.categoria || "";
+  $("edDesc").value = p.descripcionCarta || "";
+  $("edEmplatado").value = p.emplatado || "";
+  $("edCoste").value = p.costeRacion || "";
+  $("edPvp").value = p.pvpSugerido || "";
+  $("edFood").value = p.foodCost || "";
+  $("edMaridaje").value = p.maridaje || "";
+  $("edAlergenos").value = (p.alergenos || []).join(", ");
+
+  const ci = $("edIngredientes"); ci.innerHTML = "";
+  (p.ingredientes || []).forEach(ing => ci.appendChild(edFilaIngrediente(ing)));
+  if(!(p.ingredientes || []).length) ci.appendChild(edFilaIngrediente());
+
+  const cp = $("edPasos"); cp.innerHTML = "";
+  (p.elaboracion || []).forEach(paso => cp.appendChild(edFilaPaso(paso)));
+  if(!(p.elaboracion || []).length) cp.appendChild(edFilaPaso());
+
+  $("modalEdit").classList.add("abierto");
+}
+
+function cerrarEditor(){ $("modalEdit").classList.remove("abierto"); }
+
+function guardarEdicion(){
+  const id = $("edId").value;
   const arr = leerBiblio();
-  $("biblioContador").textContent = arr.length + (arr.length === 1 ? " plato guardado" : " platos guardados");
+  const idx = arr.findIndex(x => x.id === id);
+  if(idx === -1){ cerrarEditor(); return; }
+
+  const ingredientes = [...$("edIngredientes").querySelectorAll(".ed-fila")].map(f => {
+    const ins = f.querySelectorAll("input");
+    return { nombre: ins[0].value.trim(), cantidad: ins[1].value.trim(), coste: ins[2].value.trim() };
+  }).filter(x => x.nombre);
+
+  const elaboracion = [...$("edPasos").querySelectorAll(".ed-fila input")]
+    .map(i => i.value.trim()).filter(Boolean);
+
+  const alergenos = $("edAlergenos").value.split(",").map(s => s.trim()).filter(Boolean);
+
+  arr[idx] = Object.assign({}, arr[idx], {
+    nombre: $("edNombre").value.trim(),
+    categoria: $("edCategoria").value.trim(),
+    descripcionCarta: $("edDesc").value.trim(),
+    ingredientes,
+    elaboracion,
+    emplatado: $("edEmplatado").value.trim(),
+    costeRacion: $("edCoste").value.trim(),
+    pvpSugerido: $("edPvp").value.trim(),
+    foodCost: $("edFood").value.trim(),
+    maridaje: $("edMaridaje").value.trim(),
+    alergenos,
+    ts: Date.now()
+  });
+  escribirBiblio(arr);
+  cerrarEditor();
+  renderBiblio();
+  setEstado("Plato actualizado en la biblioteca.");
+}
+
+function renderBiblio(){
+  const todos = leerBiblio();
+  $("biblioContador").textContent = todos.length + (todos.length === 1 ? " plato guardado" : " platos guardados");
   const cont = $("biblioContenido");
   cont.innerHTML = "";
 
-  if(!arr.length){
+  if(!todos.length){
     cont.innerHTML = '<p class="biblio-vacia">Aún no has guardado ningún plato. Pulsa «Guardar» en cualquier comanda y aparecerá aquí, ordenado por categoría.</p>';
+    return;
+  }
+
+  // Filtro por buscador (nombre, ingredientes, categoría, descripción)
+  const q = ($("biblioBuscar") ? $("biblioBuscar").value : "").trim().toLowerCase();
+  const arr = !q ? todos : todos.filter(p => {
+    const ings = (p.ingredientes || []).map(x => x.nombre).join(" ");
+    return [p.nombre, p.categoria, p.grupo, p.descripcionCarta, ings]
+      .join(" ").toLowerCase().includes(q);
+  });
+
+  if(!arr.length){
+    cont.innerHTML = '<p class="biblio-vacia">Sin resultados para «' + esc(q) + '».</p>';
     return;
   }
 
@@ -986,6 +1177,9 @@ window.addEventListener("afterprint", () => {
 
 // ---------- Arranque ----------
 renderBiblio();
+document.getElementById("modalEdit").addEventListener("click", e => {
+  if(e.target.id === "modalEdit") cerrarEditor();
+});
 (function(){
   const codigo = getCodigo();
   if(codigo) setSyncInfo("Código de sincronización: [" + codigo + "]. Pulsa «Sincronizar» para actualizar.", "");
