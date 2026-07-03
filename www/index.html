@@ -288,6 +288,25 @@
   }
   .barra-doc .cuenta{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--texto-suave);margin-right:auto;}
 
+  /* ---------- VISTA COMPACTA (LISTA) ---------- */
+  .conmutador-vista{display:flex;gap:0;margin-top:12px;border:1px solid var(--panel-borde);border-radius:8px;overflow:hidden;width:fit-content;}
+  .conmutador-vista button{
+    background:var(--panel);border:none;color:var(--texto-suave);
+    font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;padding:8px 16px;cursor:pointer;
+  }
+  .conmutador-vista button.activo{background:var(--cobre);color:#1A130A;}
+  .fila-plato{
+    display:flex;align-items:center;gap:12px;padding:11px 14px;
+    background:var(--panel);border:1px solid var(--panel-borde);border-radius:9px;margin-bottom:7px;cursor:pointer;
+  }
+  .fila-plato:hover{border-color:var(--cobre);}
+  .fila-plato .chk-lista{width:20px;height:20px;accent-color:var(--cobre);flex:0 0 auto;cursor:pointer;}
+  .fila-plato .fp-nombre{font-family:'Fraunces',serif;font-weight:700;font-size:16px;flex:1;min-width:0;}
+  .fila-plato .fp-cat{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--cobre-claro);white-space:nowrap;}
+  .fila-plato .fp-precio{font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--texto);white-space:nowrap;}
+  .fila-plato .fp-flecha{color:var(--texto-suave);font-size:12px;flex:0 0 auto;}
+  .ficha-expandida{margin:-2px 0 12px;}
+
   @media(max-width:640px){
     .form-grid{grid-template-columns:1fr;}
     .cifras{grid-template-columns:1fr 1fr;}
@@ -906,6 +925,50 @@ function guardarEdicion(){
   setEstado("Plato actualizado en la biblioteca.");
 }
 
+let vistaBiblio = localStorage.getItem("elpase_vista") || "fichas";
+function setVista(v){
+  vistaBiblio = v;
+  localStorage.setItem("elpase_vista", v);
+  renderBiblio();
+}
+
+// Fila compacta que se expande a ficha completa al tocarla
+function crearFilaPlato(p){
+  const cont = document.createElement("div");
+
+  const fila = document.createElement("div");
+  fila.className = "fila-plato no-print";
+  fila.innerHTML =
+    `<input type="checkbox" class="chk-lista" ${seleccionados.has(p.id) ? "checked" : ""} title="Seleccionar">
+     <span class="fp-nombre">${esc(p.nombre)}</span>
+     <span class="fp-precio">${esc(p.pvpSugerido || "")}</span>
+     <span class="fp-flecha">▸</span>`;
+
+  const chk = fila.querySelector(".chk-lista");
+  chk.onclick = e => {
+    e.stopPropagation();
+    if(chk.checked) seleccionados.add(p.id); else seleccionados.delete(p.id);
+    actualizarBarraDoc();
+  };
+
+  const zona = document.createElement("div");
+  zona.className = "ficha-expandida";
+  let abierta = false;
+  fila.onclick = () => {
+    abierta = !abierta;
+    fila.querySelector(".fp-flecha").textContent = abierta ? "▾" : "▸";
+    if(abierta && !zona.hasChildNodes()){
+      zona.appendChild(crearComandaEl(p, "biblioteca"));
+    }
+    zona.style.display = abierta ? "block" : "none";
+  };
+  zona.style.display = "none";
+
+  cont.appendChild(fila);
+  cont.appendChild(zona);
+  return cont;
+}
+
 function renderBiblio(){
   const todos = leerBiblio();
   $("biblioContador").textContent = todos.length + (todos.length === 1 ? " plato guardado" : " platos guardados");
@@ -925,8 +988,19 @@ function renderBiblio(){
       .join(" ").toLowerCase().includes(q);
   });
 
+  // Conmutador de vista Fichas / Lista
+  const conm = document.createElement("div");
+  conm.className = "conmutador-vista no-print";
+  conm.innerHTML =
+    `<button class="${vistaBiblio === 'fichas' ? 'activo' : ''}" onclick="setVista('fichas')">▤ Fichas</button>
+     <button class="${vistaBiblio === 'lista' ? 'activo' : ''}" onclick="setVista('lista')">☰ Lista</button>`;
+  cont.appendChild(conm);
+
   if(!arr.length){
-    cont.innerHTML = '<p class="biblio-vacia">Sin resultados para «' + esc(q) + '».</p>';
+    const vacio = document.createElement("p");
+    vacio.className = "biblio-vacia";
+    vacio.innerHTML = 'Sin resultados para «' + esc(q) + '».';
+    cont.appendChild(vacio);
     return;
   }
 
@@ -950,9 +1024,12 @@ function renderBiblio(){
     h.className = "cabecera-grupo";
     h.textContent = clave + " · " + grupos[clave].length;
     wrap.appendChild(h);
-    grupos[clave]
-      .sort((a, b) => (b.ts || 0) - (a.ts || 0))
-      .forEach(p => wrap.appendChild(crearComandaEl(p, "biblioteca")));
+    const ordenados = grupos[clave].sort((a, b) => (b.ts || 0) - (a.ts || 0));
+    if(vistaBiblio === "lista"){
+      ordenados.forEach(p => wrap.appendChild(crearFilaPlato(p)));
+    }else{
+      ordenados.forEach(p => wrap.appendChild(crearComandaEl(p, "biblioteca")));
+    }
     cont.appendChild(wrap);
   });
 
