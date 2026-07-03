@@ -7,10 +7,10 @@
     "sync": "npx cap sync android",
     "open": "npx cap open android",
     "build:apk": "cd android && ./gradlew assembleRelease"
-  },
   "dependencies": {
     "@capacitor/android": "^6.1.2",
-    "@capacitor/core": "^6.1.2"
+    "@capacitor/core": "^6.1.2",
+    "@bcyesil/capacitor-plugin-printer": "^0.0.6"
   },
   "devDependencies": {
     "@capacitor/cli": "^6.1.2"

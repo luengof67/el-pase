@@ -834,16 +834,71 @@ async function sincronizar(){
 }
 
 // ---------- Impresión / PDF ----------
+// En Android usa el plugin nativo (diálogo del sistema, imprimir o PDF).
+// En PC/navegador usa window.print() con el CSS de impresión.
+function esNativo(){
+  return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+}
+
+// Genera un documento HTML autónomo con estilos incrustados para el plugin nativo
+function construirHTMLImpresion(comandas){
+  const bloques = comandas.map(el => {
+    const clon = el.cloneNode(true);
+    clon.querySelectorAll(".comanda-acciones, .btn-fotos").forEach(n => n.remove());
+    return clon.outerHTML;
+  }).join("");
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+    *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,Roboto,Arial,sans-serif;}
+    body{padding:14px;color:#000;background:#fff;}
+    .comanda{border:1px solid #888;border-top:2px solid #333;border-radius:4px;
+      padding:16px 16px 20px;margin-bottom:14px;page-break-inside:avoid;}
+    .num{display:block;font-size:10px;color:#888;letter-spacing:1px;text-align:right;}
+    .cat{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#B07A2E;}
+    h2{font-size:20px;margin:4px 0 2px;}
+    .desc{font-style:italic;font-size:13px;color:#444;margin:6px 0 10px;}
+    h3{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#666;margin:10px 0 6px;}
+    .linea{border:none;border-top:1px dashed #bbb;margin:10px 0;}
+    .fila-ing{display:flex;justify-content:space-between;font-size:12px;padding:2px 0;}
+    .fila-ing .coste{color:#666;}
+    ol.pasos{padding-left:18px;font-size:12.5px;line-height:1.5;}
+    ol.pasos li{margin-bottom:5px;}
+    .emplatado{font-size:12.5px;line-height:1.5;background:#f1f1f1;border-left:3px solid #B07A2E;padding:8px 10px;}
+    .cifras{display:flex;gap:8px;}
+    .cifra{flex:1;background:#f1f1f1;border-radius:5px;padding:8px;text-align:center;}
+    .cifra .valor{font-size:15px;font-weight:700;}
+    .cifra .etiqueta{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:#666;}
+    .maridaje{font-size:12.5px;}
+    .alergenos{margin-top:6px;}
+    .alergeno{display:inline-block;font-size:10px;background:#EAD9C3;border-radius:12px;padding:2px 8px;margin:2px 4px 0 0;color:#6B5333;}
+  </style></head><body>${bloques}</body></html>`;
+}
+
+async function imprimirNativo(comandas){
+  if(!comandas.length){ alert("No hay nada que imprimir."); return; }
+  try{
+    const Printer = window.Capacitor.Plugins.Printer;
+    await Printer.print({ content: construirHTMLImpresion(comandas), name: "EL PASE" });
+  }catch(e){
+    alert("No se pudo abrir la impresión: " + e.message);
+  }
+}
+
 function imprimirResultados(){
+  const comandas = [...document.querySelectorAll("#resultados .comanda")];
+  if(esNativo()) return imprimirNativo(comandas);
   document.body.classList.add("imprimiendo-resultados");
   window.print();
 }
 function imprimirBiblioteca(){
   if(!leerBiblio().length){ alert("La biblioteca está vacía."); return; }
+  const comandas = [...document.querySelectorAll("#biblioteca .comanda")];
+  if(esNativo()) return imprimirNativo(comandas);
   document.body.classList.add("imprimiendo-biblioteca");
   window.print();
 }
 function imprimirUno(el){
+  if(esNativo()) return imprimirNativo([el]);
   el.classList.add("print-target");
   document.body.classList.add("imprimiendo-uno");
   window.print();
