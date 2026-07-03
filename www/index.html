@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EL PASE · Sugerencias gourmet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700;9..144,900&family=Work+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --fondo:#14171A;
+    --panel:#1D2126;
+    --panel-borde:#2B3036;
+    --cobre:#C98A4B;
+    --cobre-claro:#E0A968;
+    --oliva:#7A8450;
+    --papel:#F7F3E9;
+    --papel-sombra:#E8E2D2;
+    --tinta:#26221B;
+    --tinta-suave:#6B6455;
+    --texto:#E9E6DF;
+    --texto-suave:#9BA0A6;
+    --rojo:#B4513E;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{
+    background:var(--fondo);
+    color:var(--texto);
+    font-family:'Work Sans',sans-serif;
+    min-height:100vh;
+  }
+  /* ---------- CABECERA ---------- */
+  header{
+    padding:28px 20px 18px;
+    text-align:center;
+    border-bottom:1px solid var(--panel-borde);
+  }
+  header .marca{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:4px;
+    color:var(--cobre);
+    text-transform:uppercase;
+  }
+  header h1{
+    font-family:'Fraunces',serif;
+    font-weight:900;
+    font-size:clamp(34px,7vw,52px);
+    letter-spacing:1px;
+    margin:4px 0 2px;
+  }
+  header p{color:var(--texto-suave);font-size:14px;}
+
+  main{max-width:920px;margin:0 auto;padding:20px 16px 60px;}
+
+  /* ---------- FORMULARIO ---------- */
+  .form-panel{
+    background:var(--panel);
+    border:1px solid var(--panel-borde);
+    border-radius:14px;
+    padding:22px 20px;
+  }
+  .form-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:16px;
+  }
+  .campo{display:flex;flex-direction:column;gap:6px;}
+  .campo.ancho{grid-column:1 / -1;}
+  label{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    color:var(--cobre-claro);
+  }
+  input,select,textarea{
+    background:var(--fondo);
+    border:1px solid var(--panel-borde);
+    border-radius:8px;
+    color:var(--texto);
+    font-family:'Work Sans',sans-serif;
+    font-size:15px;
+    padding:11px 12px;
+    outline:none;
+    width:100%;
+  }
+  input:focus,select:focus,textarea:focus{border-color:var(--cobre);}
+  textarea{resize:vertical;min-height:64px;}
+  .ayuda{font-size:12px;color:var(--texto-suave);}
+
+  .boton-generar{
+    margin-top:20px;
+    width:100%;
+    background:var(--cobre);
+    color:#1A130A;
+    border:none;
+    border-radius:10px;
+    font-family:'Fraunces',serif;
+    font-weight:700;
+    font-size:19px;
+    padding:15px;
+    cursor:pointer;
+    transition:background .15s;
+  }
+  .boton-generar:hover{background:var(--cobre-claro);}
+  .boton-generar:disabled{background:#5A5248;color:#2E2A24;cursor:wait;}
+
+  /* ---------- ESTADO ---------- */
+  .estado{
+    margin-top:18px;
+    text-align:center;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:13px;
+    color:var(--texto-suave);
+    min-height:20px;
+  }
+  .estado.error{color:var(--rojo);}
+  .parpadeo::after{content:'▌';animation:blink 1s steps(1) infinite;color:var(--cobre);}
+  @keyframes blink{50%{opacity:0;}}
+
+  /* ---------- COMANDAS (resultados) ---------- */
+  #resultados{margin-top:30px;display:flex;flex-direction:column;gap:28px;}
+  .comanda{
+    background:var(--papel);
+    color:var(--tinta);
+    border-radius:3px;
+    padding:26px 24px 30px;
+    font-family:'IBM Plex Mono',monospace;
+    position:relative;
+    box-shadow:0 10px 30px rgba(0,0,0,.45);
+    border-top:4px dashed var(--cobre);
+  }
+  .comanda .num{
+    position:absolute;top:18px;right:20px;
+    font-size:11px;color:var(--tinta-suave);letter-spacing:2px;
+  }
+  .comanda h2{
+    font-family:'Fraunces',serif;
+    font-weight:700;
+    font-size:26px;
+    line-height:1.15;
+    margin:8px 0 2px;
+  }
+  .comanda .cat{
+    font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:var(--cobre);
+  }
+  .comanda .desc{
+    font-family:'Work Sans',sans-serif;
+    font-style:italic;
+    font-size:15px;
+    color:#4A4438;
+    margin:8px 0 14px;
+    line-height:1.5;
+  }
+  .linea{border:none;border-top:1px dashed #B9B09A;margin:14px 0;}
+  .comanda h3{
+    font-size:12px;letter-spacing:2px;text-transform:uppercase;
+    color:var(--tinta-suave);margin-bottom:8px;
+  }
+  .fila-ing{
+    display:flex;justify-content:space-between;gap:10px;
+    font-size:13.5px;padding:3px 0;
+  }
+  .fila-ing .coste{color:var(--tinta-suave);white-space:nowrap;}
+  ol.pasos{padding-left:20px;font-family:'Work Sans',sans-serif;font-size:14.5px;line-height:1.6;}
+  ol.pasos li{margin-bottom:7px;}
+  .emplatado{
+    font-family:'Work Sans',sans-serif;font-size:14.5px;line-height:1.6;
+    background:var(--papel-sombra);border-left:3px solid var(--cobre);
+    padding:10px 12px;border-radius:0 6px 6px 0;
+  }
+  .cifras{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:4px;
+  }
+  .cifra{
+    background:var(--papel-sombra);border-radius:6px;padding:10px;text-align:center;
+  }
+  .cifra .valor{font-size:19px;font-weight:600;}
+  .cifra .etiqueta{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--tinta-suave);margin-top:2px;}
+  .maridaje{font-size:13.5px;font-family:'Work Sans',sans-serif;}
+  .alergenos{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;}
+  .alergeno{
+    font-size:11px;background:#EAD9C3;border:1px solid #D6BE9C;
+    border-radius:20px;padding:3px 10px;color:#6B5333;
+  }
+  .btn-fotos{
+    display:inline-block;margin-top:16px;
+    font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;
+    color:var(--papel);background:var(--tinta);
+    text-decoration:none;padding:10px 16px;border-radius:8px;
+  }
+  .btn-fotos:hover{background:#3A342A;}
+
+  /* ---------- ACCIONES ---------- */
+  .barra-acciones{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;}
+  .btn-accion{
+    font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;
+    border:1px solid var(--panel-borde);background:var(--panel);color:var(--texto);
+    border-radius:8px;padding:10px 14px;cursor:pointer;transition:.15s;
+  }
+  .btn-accion:hover{border-color:var(--cobre);color:var(--cobre-claro);}
+  .btn-accion.primario{background:var(--cobre);color:#1A130A;border-color:var(--cobre);}
+  .btn-accion.primario:hover{background:var(--cobre-claro);}
+
+  .comanda-acciones{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap;}
+  .comanda-acciones button{
+    font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;
+    border:1px solid #C9BDA0;background:transparent;color:var(--tinta);
+    border-radius:8px;padding:8px 12px;cursor:pointer;
+  }
+  .comanda-acciones button:hover{background:var(--papel-sombra);}
+  .comanda-acciones button:disabled{opacity:.55;cursor:default;}
+
+  /* ---------- BIBLIOTECA ---------- */
+  #biblioteca{margin-top:44px;}
+  .biblio-cab{
+    display:flex;align-items:flex-end;justify-content:space-between;gap:14px;flex-wrap:wrap;
+    border-top:1px solid var(--panel-borde);padding-top:26px;
+  }
+  .titulo-seccion{font-family:'Fraunces',serif;font-weight:700;font-size:24px;}
+  .contador{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--texto-suave);}
+  .biblio-herramientas{display:flex;gap:8px;flex-wrap:wrap;}
+  #biblioContenido{margin-top:8px;}
+  .grupo-cat{margin-top:28px;display:flex;flex-direction:column;gap:24px;}
+  .grupo-cat > h3.cabecera-grupo{
+    font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:2px;
+    text-transform:uppercase;color:var(--cobre);
+    display:flex;align-items:center;gap:12px;margin-bottom:-6px;
+  }
+  .grupo-cat > h3.cabecera-grupo::after{content:'';flex:1;height:1px;background:var(--panel-borde);}
+  .biblio-vacia{color:var(--texto-suave);font-size:14px;margin-top:16px;}
+  .sync-info{
+    font-family:'IBM Plex Mono',monospace;font-size:12px;
+    color:var(--texto-suave);margin-top:10px;min-height:16px;
+  }
+  .sync-info.ok{color:var(--oliva);}
+  .sync-info.error{color:var(--rojo);}
+
+  @media(max-width:640px){
+    .form-grid{grid-template-columns:1fr;}
+    .cifras{grid-template-columns:1fr 1fr;}
+  }
+  @media(prefers-reduced-motion:reduce){
+    .parpadeo::after{animation:none;}
+  }
+
+  /* ---------- IMPRESIÓN / PDF ---------- */
+  @media print{
+    header, .form-panel, .estado, .no-print, .btn-fotos{display:none !important;}
+    main{max-width:none;padding:0;margin:0;}
+    body{background:#fff;color:#000;}
+    #biblioteca{margin-top:0;}
+    .biblio-cab{border:none;padding:0;}
+    .comanda{
+      background:#fff;color:#000;box-shadow:none;
+      border:1px solid #888;border-top:2px solid #333;
+      page-break-inside:avoid;margin-bottom:14px;
+    }
+    #resultados{gap:0;}
+    .emplatado, .cifra, .alergeno{background:#f1f1f1 !important;color:#000 !important;}
+    .grupo-cat > h3.cabecera-grupo{color:#000;page-break-after:avoid;}
+    .grupo-cat > h3.cabecera-grupo::after{background:#ccc;}
+    /* imprimir SOLO los resultados */
+    body.imprimiendo-resultados #biblioteca{display:none !important;}
+    /* imprimir SOLO la biblioteca */
+    body.imprimiendo-biblioteca #resultados{display:none !important;}
+    /* imprimir UN solo plato */
+    body.imprimiendo-uno .grupo-cat > h3.cabecera-grupo{display:none !important;}
+    body.imprimiendo-uno #resultados > *:not(.print-target),
+    body.imprimiendo-uno #biblioteca .comanda:not(.print-target){display:none !important;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="marca">Cocina profesional · I+D</div>
+  <h1>EL PASE</h1>
+  <p>Sugerencias de platos gourmet con investigación de tendencias en tiempo real</p>
+</header>
+
+<main>
+  <section class="form-panel">
+    <div class="form-grid">
+      <div class="campo ancho">
+        <label for="ingredientes">Ingredientes principales</label>
+        <textarea id="ingredientes" placeholder="Ej.: presa ibérica, boletus, calabaza asada, PX..."></textarea>
+        <span class="ayuda">Separa por comas. Pueden ser producto de temporada, excedentes de cámara, etc.</span>
+      </div>
+
+      <div class="campo">
+        <label for="tipo">Tipo de plato</label>
+        <select id="tipo">
+          <option>Entrante</option>
+          <option>Principal</option>
+          <option>Pescado</option>
+          <option>Carne</option>
+          <option>Arroz / pasta</option>
+          <option>Tapa / ración</option>
+          <option>Postre</option>
+          <option>Aperitivo / snack</option>
+        </select>
+      </div>
+
+      <div class="campo">
+        <label for="destino">Destino</label>
+        <select id="destino">
+          <option>Carta</option>
+          <option>Menú del día</option>
+          <option>Menú degustación</option>
+          <option>Evento / banquete</option>
+          <option>Sugerencia fuera de carta</option>
+        </select>
+      </div>
+
+      <div class="campo">
+        <label for="coste">Coste objetivo por ración (€)</label>
+        <input id="coste" type="number" step="0.5" min="0" placeholder="Ej.: 4.50">
+      </div>
+
+      <div class="campo">
+        <label for="estilo">Estilo culinario</label>
+        <select id="estilo">
+          <option>Español contemporáneo</option>
+          <option>Tradicional actualizado</option>
+          <option>Vanguardia</option>
+          <option>Fusión asiática</option>
+          <option>Mediterráneo</option>
+          <option>Bistró francés</option>
+          <option>Latino / nikkei</option>
+        </select>
+      </div>
+
+      <div class="campo ancho">
+        <label for="notas">Notas adicionales (opcional)</label>
+        <input id="notas" type="text" placeholder="Ej.: sin frutos secos, apto para emplatar en frío, público joven...">
+      </div>
+    </div>
+
+    <button id="btnGenerar" class="boton-generar" onclick="generar()">Cantar el pase 🔔</button>
+    <div id="estado" class="estado"></div>
+  </section>
+
+  <section id="resultados"></section>
+
+  <section id="biblioteca">
+    <div class="biblio-cab no-print">
+      <div>
+        <h2 class="titulo-seccion">Biblioteca de platos</h2>
+        <span class="contador" id="biblioContador">0 platos guardados</span>
+      </div>
+      <div class="biblio-herramientas">
+        <button class="btn-accion primario" onclick="sincronizar()" id="btnSync">☁ Sincronizar</button>
+        <button class="btn-accion" onclick="imprimirBiblioteca()">🖨 Imprimir</button>
+        <button class="btn-accion" onclick="exportarJSON()">⬆ Exportar JSON</button>
+        <label class="btn-accion" style="cursor:pointer;">⬇ Importar
+          <input type="file" accept="application/json,.json" onchange="importarJSON(this)" style="display:none;">
+        </label>
+        <button class="btn-accion" onclick="vaciarBiblio()">🗑 Vaciar</button>
+      </div>
+    </div>
+    <div class="sync-info no-print" id="syncInfo"></div>
+    <div id="biblioContenido"></div>
+  </section>
+</main>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+// ============================================================
+// FIREBASE · proyecto hablemos-de-cocina
+// EL PASE usa su propia colección, no toca el resto del proyecto.
+// ============================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyBDk2UB4UNivvtnh4vpqoLYN9-QijdQg7E",
+  authDomain: "hablemos-de-cocina.firebaseapp.com",
+  projectId: "hablemos-de-cocina",
+  storageBucket: "hablemos-de-cocina.firebasestorage.app",
+  messagingSenderId: "667488331445",
+  appId: "1:667488331445:web:39abba5a0dfe79525e00fc"
+};
+let db = null;
+try{
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+}catch(e){
+  console.warn("Firebase no disponible:", e.message);
+}
+</script>
+<script>
+// El Worker de Cloudflare va fijo: proxy a la API de Anthropic
+// con la clave protegida del lado servidor.
+// ============================================================
+const ENDPOINT = "https://comanda.luengof67.workers.dev/";
+const MODELO   = "claude-sonnet-4-6";
+
+const $ = id => document.getElementById(id);
+
+function setEstado(txt, esError = false, cursor = false){
+  const e = $("estado");
+  e.textContent = txt;
+  e.className = "estado" + (esError ? " error" : "") + (cursor ? " parpadeo" : "");
+}
+
+async function generar(){
+  const ingredientes = $("ingredientes").value.trim();
+  if(!ingredientes){
+    setEstado("Indica al menos un ingrediente principal.", true);
+    return;
+  }
+  const tipo    = $("tipo").value;
+  const destino = $("destino").value;
+  const coste   = $("coste").value;
+  const estilo  = $("estilo").value;
+  const notas   = $("notas").value.trim();
+
+  $("btnGenerar").disabled = true;
+  $("resultados").innerHTML = "";
+
+  const contexto = `- Ingredientes principales: ${ingredientes}
+- Tipo de plato: ${tipo}
+- Destino: ${destino}
+${coste ? `- Coste objetivo por ración: ${coste} € (ajústate a él)` : "- Coste: razonable para restauración"}
+- Estilo: ${estilo}
+${notas ? `- Notas: ${notas}` : ""}`;
+
+  try{
+    // ---------- FASE 1: investigación de tendencias (con búsqueda web) ----------
+    setEstado("Fase 1/2 · Investigando tendencias", false, true);
+    let tendencias = "";
+    try{
+      const r1 = await llamarAPI({
+        max_tokens: 1000,
+        messages:[{ role:"user", content:
+`Busca en la web tendencias gastronómicas actuales (2026) relevantes para restaurantes en España sobre: estilo ${estilo}, platos tipo ${tipo}, ingredientes ${ingredientes}.
+Responde SOLO con 4 puntos muy breves (una línea cada uno) resumiendo técnicas, presentaciones o combinaciones en tendencia. Sin introducción ni cierre.` }],
+        tools:[{ type:"web_search_20250305", name:"web_search" }]
+      });
+      tendencias = (r1.content || []).filter(b => b.type === "text").map(b => b.text).join("\n").trim();
+    }catch(e){
+      console.warn("Investigación no disponible, continúo sin ella:", e.message);
+    }
+
+    // ---------- FASE 2: generación de platos (solo JSON, sin herramientas) ----------
+    setEstado("Fase 2/2 · Componiendo los platos", false, true);
+    const r2 = await llamarAPI({
+      max_tokens: 8000,
+      messages:[{ role:"user", content:
+`Eres un chef ejecutivo asesor de I+D para restaurantes en España.
+${tendencias ? "Tendencias actuales investigadas:\n" + tendencias + "\n" : ""}
+Crea 4 platos gourmet originales y bien diferenciados entre sí con estos parámetros:
+${contexto}
+
+Responde ÚNICAMENTE con un objeto JSON válido, sin markdown, sin comentarios, sin texto antes ni después. Estructura exacta:
+{"platos":[{"nombre":"","categoria":"","descripcionCarta":"frase evocadora estilo carta","ingredientes":[{"nombre":"","cantidad":"por ración","coste":"€ aprox"}],"elaboracion":["paso 1","paso 2"],"emplatado":"presentación: vajilla, disposición, alturas, salsas, acabados","costeRacion":"€","pvpSugerido":"€","foodCost":"%","maridaje":"","alergenos":["..."]}]}
+
+Máximo 6 ingredientes y 5 pasos por plato. Textos concisos para que el JSON quepa completo. Todo en español.` }]
+    });
+
+    if(r2.error) throw new Error("API: " + (r2.error.message || JSON.stringify(r2.error)));
+
+    const texto = (r2.content || []).filter(b => b.type === "text").map(b => b.text).join("\n");
+    const platos = extraerJSON(texto);
+    if(!platos || !platos.length){
+      console.error("Respuesta sin JSON válido:", texto);
+      throw new Error("La respuesta llegó incompleta. Pulsa de nuevo para reintentar.");
+    }
+
+    // Etiqueta canónica para agrupar en la biblioteca (independiente del texto libre de la IA)
+    platos.forEach(p => p.grupo = tipo);
+
+    pintarComandas(platos);
+    setEstado("Servicio listo. " + platos.length + " sugerencias en el pase." + (tendencias ? "" : " (sin investigación web esta vez)"));
+  }catch(err){
+    console.error(err);
+    setEstado("⚠ " + err.message, true);
+  }finally{
+    $("btnGenerar").disabled = false;
+  }
+}
+
+async function llamarAPI(cuerpo){
+  let resp;
+  try{
+    resp = await fetch(ENDPOINT, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify(Object.assign({ model: MODELO }, cuerpo))
+    });
+  }catch(e){
+    throw new Error("Sin conexión con el servidor (" + e.message + "). Comprueba tu conexión a internet.");
+  }
+  let data;
+  try{ data = await resp.json(); }
+  catch(e){ throw new Error("Respuesta no válida del servidor (HTTP " + resp.status + ")."); }
+  if(!resp.ok){
+    throw new Error(data.error ? (data.error.message || JSON.stringify(data.error)) : "HTTP " + resp.status);
+  }
+  return data;
+}
+
+function extraerJSON(texto){
+  // Limpia posibles vallas de código y localiza el objeto JSON
+  let t = texto.replace(/```json|```/g, "").trim();
+  const ini = t.indexOf("{");
+  if(ini === -1) return null;
+  const fin = t.lastIndexOf("}");
+  if(fin > ini){
+    try{
+      const obj = JSON.parse(t.slice(ini, fin + 1));
+      if(obj.platos && obj.platos.length) return obj.platos;
+    }catch(e){ /* seguimos al rescate */ }
+  }
+  // RESCATE: la respuesta llegó cortada. Recortamos hasta el final
+  // del último plato completo y cerramos el JSON a mano.
+  t = t.slice(ini);
+  for(let corte = t.length; corte > 50; ){
+    corte = t.lastIndexOf("}", corte - 1);
+    if(corte === -1) break;
+    try{
+      const obj = JSON.parse(t.slice(0, corte + 1) + "]}");
+      if(obj.platos && obj.platos.length) return obj.platos;
+    }catch(e){ /* probar un cierre anterior */ }
+  }
+  return null;
+}
+
+function esc(s){
+  return String(s ?? "").replace(/[&<>"']/g, c => (
+    {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]
+  ));
+}
+
+// ---------- Render de una comanda ----------
+function comandaInner(p, etiquetaNum){
+  const ings = (p.ingredientes || []).map(x =>
+    `<div class="fila-ing"><span>${esc(x.nombre)} · ${esc(x.cantidad)}</span><span class="coste">${esc(x.coste)}</span></div>`
+  ).join("");
+  const pasos = (p.elaboracion || []).map(x => `<li>${esc(x)}</li>`).join("");
+  const alergenos = (p.alergenos || []).map(a => `<span class="alergeno">${esc(a)}</span>`).join("");
+  const consulta = encodeURIComponent(`emplatado gourmet ${p.nombre} fine dining plating`);
+  const urlFotos = `https://www.google.com/search?tbm=isch&q=${consulta}`;
+
+  return `
+    <span class="num">${esc(etiquetaNum)}</span>
+    <div class="cat">${esc(p.categoria)}</div>
+    <h2>${esc(p.nombre)}</h2>
+    <p class="desc">${esc(p.descripcionCarta)}</p>
+
+    <hr class="linea">
+    <h3>Escandallo por ración</h3>
+    ${ings}
+
+    <hr class="linea">
+    <h3>Elaboración</h3>
+    <ol class="pasos">${pasos}</ol>
+
+    <hr class="linea">
+    <h3>Emplatado</h3>
+    <div class="emplatado">${esc(p.emplatado)}</div>
+
+    <hr class="linea">
+    <div class="cifras">
+      <div class="cifra"><div class="valor">${esc(p.costeRacion)}</div><div class="etiqueta">Coste ración</div></div>
+      <div class="cifra"><div class="valor">${esc(p.pvpSugerido)}</div><div class="etiqueta">PVP sugerido</div></div>
+      <div class="cifra"><div class="valor">${esc(p.foodCost)}</div><div class="etiqueta">Food cost</div></div>
+    </div>
+
+    <hr class="linea">
+    <h3>Maridaje</h3>
+    <p class="maridaje">${esc(p.maridaje)}</p>
+    <div class="alergenos">${alergenos}</div>
+
+    <a class="btn-fotos" href="${urlFotos}" target="_blank" rel="noopener">📷 Ver fotos de referencia de emplatado</a>
+  `;
+}
+
+function crearComandaEl(p, modo, numero){
+  const div = document.createElement("article");
+  div.className = "comanda";
+  const etiqueta = modo === "resultado" ? ("COMANDA Nº " + String(numero).padStart(2, "0")) : "EN BIBLIOTECA";
+  div.innerHTML = comandaInner(p, etiqueta);
+
+  const acc = document.createElement("div");
+  acc.className = "comanda-acciones no-print";
+
+  const bImp = document.createElement("button");
+  bImp.textContent = "🖨 Imprimir";
+  bImp.onclick = () => imprimirUno(div);
+
+  if(modo === "resultado"){
+    const bGuardar = document.createElement("button");
+    bGuardar.textContent = "💾 Guardar";
+    bGuardar.onclick = () => guardarPlato(p, bGuardar);
+    acc.append(bGuardar, bImp);
+  }else{
+    const bQuitar = document.createElement("button");
+    bQuitar.textContent = "🗑 Quitar";
+    bQuitar.onclick = () => { if(confirm("¿Quitar «" + p.nombre + "» de la biblioteca?")) eliminarPlato(p.id); };
+    acc.append(bImp, bQuitar);
+  }
+  div.appendChild(acc);
+  return div;
+}
+
+let ultimoLote = [];
+
+function pintarComandas(platos){
+  ultimoLote = platos;
+  const cont = $("resultados");
+  cont.innerHTML = "";
+
+  const barra = document.createElement("div");
+  barra.className = "barra-acciones no-print";
+  barra.style.marginBottom = "6px";
+  barra.innerHTML =
+    `<button class="btn-accion primario" onclick="guardarLote()">💾 Guardar todo en biblioteca</button>
+     <button class="btn-accion" onclick="imprimirResultados()">🖨 Imprimir / PDF</button>`;
+  cont.appendChild(barra);
+
+  platos.forEach((p, i) => cont.appendChild(crearComandaEl(p, "resultado", i + 1)));
+}
+
+// ============================================================
+// BIBLIOTECA LOCAL (localStorage) · patrón single-file
+// Preparada para sincronizar con Firestore en el siguiente paso.
+// ============================================================
+const LS_KEY = "elpase_biblioteca_v1";
+const ORDEN_CAT = ["Entrante","Principal","Pescado","Carne","Arroz / pasta","Tapa / ración","Postre","Aperitivo / snack"];
+
+function leerBiblio(){
+  try{ return JSON.parse(localStorage.getItem(LS_KEY)) || []; }
+  catch(e){ return []; }
+}
+function escribirBiblio(arr){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(arr)); }
+  catch(e){ alert("No se pudo guardar (almacenamiento lleno): " + e.message); }
+}
+function nuevoId(){
+  return "p" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+function guardarPlato(plato, btn){
+  const arr = leerBiblio();
+  arr.push(Object.assign({ id: nuevoId(), ts: Date.now() }, plato));
+  escribirBiblio(arr);
+  if(btn){ btn.textContent = "✓ Guardado"; btn.disabled = true; }
+  renderBiblio();
+}
+
+function guardarLote(){
+  if(!ultimoLote.length) return;
+  const arr = leerBiblio();
+  ultimoLote.forEach(p => arr.push(Object.assign({ id: nuevoId(), ts: Date.now() }, p)));
+  escribirBiblio(arr);
+  renderBiblio();
+  setEstado("Guardados " + ultimoLote.length + " platos en la biblioteca.");
+  $("biblioteca").scrollIntoView({ behavior: "smooth" });
+}
+
+function eliminarPlato(id){
+  escribirBiblio(leerBiblio().filter(p => p.id !== id));
+  renderBiblio();
+}
+
+function vaciarBiblio(){
+  if(!leerBiblio().length) return;
+  if(confirm("¿Vaciar TODA la biblioteca? Esto no se puede deshacer.")){
+    escribirBiblio([]);
+    renderBiblio();
+  }
+}
+
+function renderBiblio(){
+  const arr = leerBiblio();
+  $("biblioContador").textContent = arr.length + (arr.length === 1 ? " plato guardado" : " platos guardados");
+  const cont = $("biblioContenido");
+  cont.innerHTML = "";
+
+  if(!arr.length){
+    cont.innerHTML = '<p class="biblio-vacia">Aún no has guardado ningún plato. Pulsa «Guardar» en cualquier comanda y aparecerá aquí, ordenado por categoría.</p>';
+    return;
+  }
+
+  const grupos = {};
+  arr.forEach(p => {
+    const g = p.grupo || p.categoria || "Otros";
+    (grupos[g] = grupos[g] || []).push(p);
+  });
+
+  const claves = Object.keys(grupos).sort((a, b) => {
+    let ia = ORDEN_CAT.indexOf(a), ib = ORDEN_CAT.indexOf(b);
+    if(ia === -1) ia = 99;
+    if(ib === -1) ib = 99;
+    return ia - ib || a.localeCompare(b);
+  });
+
+  claves.forEach(clave => {
+    const wrap = document.createElement("div");
+    wrap.className = "grupo-cat";
+    const h = document.createElement("h3");
+    h.className = "cabecera-grupo";
+    h.textContent = clave + " · " + grupos[clave].length;
+    wrap.appendChild(h);
+    grupos[clave]
+      .sort((a, b) => (b.ts || 0) - (a.ts || 0))
+      .forEach(p => wrap.appendChild(crearComandaEl(p, "biblioteca")));
+    cont.appendChild(wrap);
+  });
+}
+
+// ---------- Exportar / Importar (copia a Drive vía descarga/compartir) ----------
+function exportarJSON(){
+  const arr = leerBiblio();
+  if(!arr.length){ alert("La biblioteca está vacía, no hay nada que exportar."); return; }
+  const contenido = { app: "EL PASE", version: 1, exportado: new Date().toISOString(), platos: arr };
+  const blob = new Blob([JSON.stringify(contenido, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "el-pase-biblioteca-" + new Date().toISOString().slice(0, 10) + ".json";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function importarJSON(input){
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try{
+      const data = JSON.parse(e.target.result);
+      const nuevos = Array.isArray(data) ? data : (data.platos || []);
+      if(!nuevos.length){ alert("El archivo no contiene platos."); input.value = ""; return; }
+      const arr = leerBiblio();
+      const ids = new Set(arr.map(p => p.id));
+      let añadidos = 0;
+      nuevos.forEach(p => {
+        if(!p.id) p.id = nuevoId();
+        if(!ids.has(p.id)){ arr.push(p); ids.add(p.id); añadidos++; }
+      });
+      escribirBiblio(arr);
+      renderBiblio();
+      alert("Importados " + añadidos + " platos (se omitieron los ya existentes).");
+    }catch(err){
+      alert("No se pudo leer el archivo: " + err.message);
+    }
+    input.value = "";
+  };
+  reader.readAsText(file);
+}
+
+// ============================================================
+// SINCRONIZACIÓN HÍBRIDA CON FIRESTORE
+// Local siempre + botón para subir/bajar. Se identifica por un
+// "código de sincronización" que actúa como cajón privado.
+// Colección: elpase_bibliotecas / {codigo} / platos / {id}
+// ============================================================
+const LS_CODIGO = "elpase_codigo_sync";
+
+function getCodigo(){
+  return localStorage.getItem(LS_CODIGO) || "";
+}
+
+function setSyncInfo(txt, tipo){
+  const el = $("syncInfo");
+  el.textContent = txt;
+  el.className = "sync-info no-print" + (tipo ? " " + tipo : "");
+}
+
+async function sincronizar(){
+  if(!db){
+    setSyncInfo("⚠ Firebase no está disponible. Revisa la conexión.", "error");
+    return;
+  }
+  let codigo = getCodigo();
+  if(!codigo){
+    codigo = (prompt(
+      "Escribe tu CÓDIGO DE SINCRONIZACIÓN.\n\n" +
+      "Es tu cajón privado en la nube: usa el mismo en todos tus dispositivos " +
+      "para ver la misma biblioteca (p. ej. jose-cocina-2026)."
+    ) || "").trim().toLowerCase().replace(/[^a-z0-9\-_]/g, "");
+    if(!codigo){ setSyncInfo("Sincronización cancelada.", ""); return; }
+    localStorage.setItem(LS_CODIGO, codigo);
+  }
+
+  const btn = $("btnSync");
+  btn.disabled = true;
+  setSyncInfo("Sincronizando con la nube…", "");
+
+  try{
+    const col = db.collection("elpase_bibliotecas").doc(codigo).collection("platos");
+
+    // 1) Descargar lo que hay en la nube
+    const snap = await col.get();
+    const remotos = {};
+    snap.forEach(doc => { remotos[doc.id] = doc.data(); });
+
+    // 2) Fusionar con lo local (unión por id; gana el más reciente por ts)
+    const locales = leerBiblio();
+    const fusion = {};
+    Object.values(remotos).forEach(p => { if(p.id) fusion[p.id] = p; });
+    locales.forEach(p => {
+      if(!p.id) p.id = nuevoId();
+      if(!fusion[p.id] || (p.ts || 0) >= (fusion[p.id].ts || 0)) fusion[p.id] = p;
+    });
+
+    // 3) Subir a la nube lo que falte o esté más actualizado en local
+    const subidas = [];
+    Object.values(fusion).forEach(p => {
+      const r = remotos[p.id];
+      if(!r || (p.ts || 0) > (r.ts || 0)){
+        subidas.push(col.doc(p.id).set(p));
+      }
+    });
+    await Promise.all(subidas);
+
+    // 4) Guardar el resultado fusionado en local
+    const resultado = Object.values(fusion);
+    escribirBiblio(resultado);
+    renderBiblio();
+
+    const hora = new Date().toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+    setSyncInfo("✓ Sincronizado [" + codigo + "] · " + resultado.length + " platos · " + hora, "ok");
+  }catch(err){
+    console.error(err);
+    setSyncInfo("⚠ Error al sincronizar: " + err.message, "error");
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+// ---------- Impresión / PDF ----------
+function imprimirResultados(){
+  document.body.classList.add("imprimiendo-resultados");
+  window.print();
+}
+function imprimirBiblioteca(){
+  if(!leerBiblio().length){ alert("La biblioteca está vacía."); return; }
+  document.body.classList.add("imprimiendo-biblioteca");
+  window.print();
+}
+function imprimirUno(el){
+  el.classList.add("print-target");
+  document.body.classList.add("imprimiendo-uno");
+  window.print();
+}
+window.addEventListener("afterprint", () => {
+  document.body.classList.remove("imprimiendo-resultados", "imprimiendo-biblioteca", "imprimiendo-uno");
+  document.querySelectorAll(".print-target").forEach(e => e.classList.remove("print-target"));
+});
+
+// ---------- Arranque ----------
+renderBiblio();
+(function(){
+  const codigo = getCodigo();
+  if(codigo) setSyncInfo("Código de sincronización: [" + codigo + "]. Pulsa «Sincronizar» para actualizar.", "");
+  else setSyncInfo("Sin sincronizar. Pulsa «Sincronizar» para vincular tu biblioteca en la nube.", "");
+})();
+</script>
+</body>
+</html>

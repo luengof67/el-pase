@@ -1,0 +1,11 @@
+{
+  "appId": "com.joseluengo.elpase",
+  "appName": "EL PASE",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

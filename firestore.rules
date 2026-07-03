@@ -1,0 +1,31 @@
+rules_version = '2';
+
+// ============================================================
+// REGLAS FIRESTORE · añade este bloque a las reglas del proyecto
+// hablemos-de-cocina SIN borrar las que ya tengas para el resto
+// de la app. Solo afecta a la colección elpase_bibliotecas.
+// ============================================================
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- Biblioteca de EL PASE ----
+    // Acceso por "código de sincronización" (cajón privado).
+    // Cualquiera que conozca el código puede leer/escribir SU cajón.
+    // Se validan campos mínimos y se limita el tamaño de los platos.
+    match /elpase_bibliotecas/{codigo}/platos/{platoId} {
+      allow read: if true;
+      allow write: if
+        // El código no puede ser trivial ni exageradamente largo
+        codigo.size() >= 4 && codigo.size() <= 60
+        // Al borrar no hay datos entrantes; al crear/editar se valida:
+        && (request.method == 'delete' || (
+             request.resource.data.keys().hasAll(['id', 'nombre'])
+             && request.resource.data.nombre is string
+             && request.resource.data.nombre.size() <= 200
+           ));
+    }
+
+    // NOTA: mantén aquí debajo el resto de tus reglas existentes
+    // para hablemos-de-cocina (recetas, listas, etc.).
+  }
+}
