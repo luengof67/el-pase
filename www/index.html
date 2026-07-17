@@ -307,6 +307,27 @@
   .fila-plato .fp-flecha{color:var(--texto-suave);font-size:12px;flex:0 0 auto;}
   .ficha-expandida{margin:-2px 0 12px;}
 
+  /* ---------- REVISIÓN PARA RECETARIO ---------- */
+  .rev-plato{
+    border:1px solid var(--panel-borde);border-radius:10px;padding:14px;margin-top:14px;position:relative;
+  }
+  .rev-plato .rev-quitar{
+    position:absolute;top:10px;right:10px;background:var(--rojo);border:none;color:#fff;
+    border-radius:6px;width:28px;height:28px;cursor:pointer;font-size:15px;
+  }
+  .chips-alerg{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
+  .chip-al{
+    display:flex;align-items:center;gap:5px;border:1px solid var(--panel-borde);
+    border-radius:20px;padding:5px 11px;cursor:pointer;font-size:12.5px;user-select:none;
+    background:var(--fondo);color:var(--texto-suave);
+  }
+  .chip-al input{display:none;}
+  .chip-al.marcado{background:var(--cobre);color:#1A130A;border-color:var(--cobre);font-weight:600;}
+  .rev-aviso{
+    font-size:12px;color:var(--cobre-claro);background:rgba(201,138,75,.1);
+    border:1px solid rgba(201,138,75,.35);border-radius:8px;padding:9px 11px;margin-top:14px;line-height:1.45;
+  }
+
   @media(max-width:640px){
     .form-grid{grid-template-columns:1fr;}
     .cifras{grid-template-columns:1fr 1fr;}
@@ -483,6 +504,23 @@
       </div>
     </div>
   </div>
+
+  <div class="modal-fondo" id="modalRecetario">
+    <div class="modal">
+      <h2>Revisar antes de enviar al Recetario</h2>
+      <p style="font-size:13px;color:var(--texto-suave);line-height:1.5;">
+        Cada plato se enviará con este formato a tu app de alérgenos.
+        Revisa especialmente los <b>alérgenos marcados</b>: la sugerencia es automática y la decisión final es tuya.
+      </p>
+      <div id="revLista"></div>
+      <div class="rev-aviso">⚠ Los alérgenos se han pre-marcado a partir del texto del plato y sus ingredientes.
+        Verifícalos uno a uno antes de enviar: en alérgenos manda tu criterio profesional.</div>
+      <div class="modal-acciones">
+        <button class="btn-cancelar-ed" onclick="cerrarRevision()">Cancelar</button>
+        <button class="btn-guardar-ed" id="btnEnviarRec" onclick="enviarARecetario()">Enviar al Recetario</button>
+      </div>
+    </div>
+  </div>
 </main>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -508,6 +546,43 @@ try{
 }catch(e){
   console.warn("Firebase no disponible:", e.message);
 }
+
+// ============================================================
+// ENLACE CON "RECETARIO" (listadoplatos) · proyecto listadiplatos
+// EL PASE envía platos revisados a la nube del Recetario.
+// ============================================================
+const LISTADO_CONFIG = {
+  apiKey: "AIzaSyBNSmPNSufNRs_pQlcZBzGESSsAhTq5cX4",
+  authDomain: "listadiplatos.firebaseapp.com",
+  projectId: "listadiplatos",
+  storageBucket: "listadiplatos.firebasestorage.app",
+  messagingSenderId: "979755835088",
+  appId: "1:979755835088:web:b411d4efa32170ae72c8d5"
+};
+const LISTADO_CODIGO = "jose403060";
+
+const LISTADO_SUBSECCIONES = [
+  {id:"primeros",nombre:"Menú del día · Primeros"},{id:"segundos",nombre:"Menú del día · Segundos"},
+  {id:"postres_menu",nombre:"Menú del día · Postres"},
+  {id:"entrantes",nombre:"Carta · Entrantes"},{id:"carnes",nombre:"Carta · Carnes"},
+  {id:"pescados",nombre:"Carta · Pescados"},{id:"postres_esp",nombre:"Carta · Postres especiales"},
+  {id:"tapas_barra",nombre:"Tapas · De barra"},{id:"tapas_esp",nombre:"Tapas · Especiales"},
+  {id:"menus_esp",nombre:"Experiencias · Menús especiales"},{id:"catas",nombre:"Experiencias · Catas maridadas"},
+  {id:"cocteles",nombre:"Experiencias · Cócteles"},
+  {id:"desayunos",nombre:"Cafetería · Desayunos"},{id:"bocadillos",nombre:"Cafetería · Bocadillos"},
+  {id:"raciones",nombre:"Cafetería · Raciones"},{id:"postres_cafe",nombre:"Cafetería · Postres"},
+  {id:"bebidas",nombre:"Cafetería · Bebidas"}
+];
+
+const LISTADO_ALERGENOS = [
+  {id:"gluten",nombre:"Gluten",icono:"🌾"},{id:"crustaceos",nombre:"Crustáceos",icono:"🦐"},
+  {id:"huevos",nombre:"Huevos",icono:"🥚"},{id:"pescado",nombre:"Pescado",icono:"🐟"},
+  {id:"cacahuetes",nombre:"Cacahuetes",icono:"🥜"},{id:"soja",nombre:"Soja",icono:"🫘"},
+  {id:"lacteos",nombre:"Lácteos",icono:"🥛"},{id:"frutos_cascara",nombre:"Frutos de cáscara",icono:"🌰"},
+  {id:"apio",nombre:"Apio",icono:"🥬"},{id:"mostaza",nombre:"Mostaza",icono:"🟡"},
+  {id:"sesamo",nombre:"Sésamo",icono:"⚪"},{id:"sulfitos",nombre:"Sulfitos",icono:"🍷"},
+  {id:"altramuces",nombre:"Altramuces",icono:"🫛"},{id:"moluscos",nombre:"Moluscos",icono:"🦪"}
+];
 </script>
 <script>
 // El Worker de Cloudflare va fijo: proxy a la API de Anthropic
@@ -1041,6 +1116,7 @@ function renderBiblio(){
     `<span class="cuenta" id="docCuenta">0 platos seleccionados</span>
      <button class="btn-accion" onclick="seleccionarTodos()">Seleccionar todos</button>
      <button class="btn-accion" onclick="limpiarSeleccion()">Ninguno</button>
+     <button class="btn-accion" onclick="abrirRevisionRecetario()">📤 Enviar a Recetario</button>
      <button class="btn-accion primario" onclick="abrirDoc()">📄 Generar carta / menú</button>`;
   cont.appendChild(barra);
   actualizarBarraDoc();
@@ -1169,6 +1245,166 @@ async function generarDocumento(formato){
     const r = await compartirOGuardar(blob, archivo, "application/pdf");
     if(r && r.indexOf("fallido") === 0) alert("No se pudo compartir el documento: " + r.slice(8));
   }catch(e){ alert("No se pudo generar el documento: " + e.message); }
+}
+
+// ---------- Envío al Recetario (listadoplatos) ----------
+let dbListado = null;
+function conectarListado(){
+  if(dbListado) return dbListado;
+  const app2 = firebase.apps.find(a => a.name === "listado") || firebase.initializeApp(LISTADO_CONFIG, "listado");
+  dbListado = firebase.firestore(app2);
+  return dbListado;
+}
+
+function normalizarTxt(s){
+  return String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+// Sugerencia automática de alérgenos oficiales a partir de texto libre e ingredientes
+const PISTAS_ALERGENOS = {
+  gluten: ["gluten","trigo","harina","pan","pasta","cebada","centeno","espelta","rebozado","empanado"],
+  crustaceos: ["crustaceo","gamba","langostino","cigala","cangrejo","bogavante","carabinero","nécora","necora"],
+  huevos: ["huevo","mayonesa","alioli","merengue"],
+  pescado: ["pescado","anchoa","boqueron","atun","bacalao","merluza","lubina","salmon","sardina","bonito"],
+  cacahuetes: ["cacahuete","mani"],
+  soja: ["soja","tofu","edamame","miso"],
+  lacteos: ["lacteo","leche","nata","queso","mantequilla","yogur","lactosa","parmesano","crema"],
+  frutos_cascara: ["frutos de cascara","fruto seco","nuez","nueces","almendra","avellana","pistacho","anacardo","pinon"],
+  apio: ["apio"],
+  mostaza: ["mostaza"],
+  sesamo: ["sesamo","ajonjoli","tahini"],
+  sulfitos: ["sulfito","vino","vinagre","px","jerez","brandy"],
+  altramuces: ["altramuz"],
+  moluscos: ["molusco","mejillon","almeja","calamar","pulpo","sepia","chipiron","berberecho","ostra","vieira","zamburiña","zamburina"]
+};
+
+function sugerirAlergenosOficiales(p){
+  // Analiza alérgenos declarados, ingredientes y nombre. NO el maridaje:
+  // el vino acompaña al plato pero no forma parte de él.
+  const texto = normalizarTxt(
+    (p.alergenos || []).join(" ") + " " +
+    (p.ingredientes || []).map(x => x.nombre).join(" ") + " " +
+    (p.nombre || "")
+  );
+  const ids = [];
+  for(const [id, pistas] of Object.entries(PISTAS_ALERGENOS)){
+    if(pistas.some(pista => texto.includes(normalizarTxt(pista)))) ids.push(id);
+  }
+  return ids;
+}
+
+// Mapeo de la categoría de EL PASE a la subsección del Recetario
+function subseccionPorDefecto(p){
+  const g = normalizarTxt(p.grupo || p.categoria || "");
+  if(g.includes("entrante")) return "entrantes";
+  if(g.includes("pescado")) return "pescados";
+  if(g.includes("carne")) return "carnes";
+  if(g.includes("postre")) return "postres_esp";
+  if(g.includes("tapa") || g.includes("aperitivo") || g.includes("snack")) return "tapas_barra";
+  if(g.includes("arroz") || g.includes("pasta") || g.includes("principal")) return "segundos";
+  return "entrantes";
+}
+
+function abrirRevisionRecetario(){
+  if(!seleccionados.size){ alert("Marca al menos un plato con su casilla."); return; }
+  const platos = leerBiblio().filter(p => seleccionados.has(p.id));
+  const cont = $("revLista");
+  cont.innerHTML = "";
+
+  platos.forEach(p => {
+    const sug = sugerirAlergenosOficiales(p);
+    const card = document.createElement("div");
+    card.className = "rev-plato";
+    card.dataset.origen = p.id;
+
+    const opciones = LISTADO_SUBSECCIONES.map(s =>
+      `<option value="${s.id}" ${s.id === subseccionPorDefecto(p) ? "selected" : ""}>${s.nombre}</option>`
+    ).join("");
+
+    const chips = LISTADO_ALERGENOS.map(a =>
+      `<label class="chip-al ${sug.includes(a.id) ? "marcado" : ""}" data-al="${a.id}">
+         <input type="checkbox" ${sug.includes(a.id) ? "checked" : ""}>${a.icono} ${a.nombre}</label>`
+    ).join("");
+
+    card.innerHTML = `
+      <button class="rev-quitar" title="No enviar este plato">×</button>
+      <label>Nombre</label>
+      <input class="rev-nombre" type="text" value="${esc(p.nombre || "")}">
+      <label>Descripción</label>
+      <textarea class="rev-desc">${esc(p.descripcionCarta || "")}</textarea>
+      <label>Sección en el Recetario</label>
+      <select class="rev-sub">${opciones}</select>
+      <label>Ingredientes (separados por comas)</label>
+      <textarea class="rev-ings">${esc((p.ingredientes || []).map(x => x.nombre).filter(Boolean).join(", "))}</textarea>
+      <label>Alérgenos (14 oficiales UE) — revísalos</label>
+      <div class="chips-alerg">${chips}</div>
+    `;
+    card.querySelector(".rev-quitar").onclick = () => {
+      card.remove();
+      if(!$("revLista").children.length) cerrarRevision();
+    };
+    card.querySelectorAll(".chip-al").forEach(ch => {
+      ch.onclick = e => {
+        e.preventDefault();
+        const inp = ch.querySelector("input");
+        inp.checked = !inp.checked;
+        ch.classList.toggle("marcado", inp.checked);
+      };
+    });
+    cont.appendChild(card);
+  });
+
+  $("modalRecetario").classList.add("abierto");
+}
+
+function cerrarRevision(){ $("modalRecetario").classList.remove("abierto"); }
+
+async function enviarARecetario(){
+  const cards = [...$("revLista").querySelectorAll(".rev-plato")];
+  if(!cards.length){ cerrarRevision(); return; }
+
+  const nuevos = cards.map((card, i) => ({
+    id: "p" + (Date.now() + i),
+    nombre: card.querySelector(".rev-nombre").value.trim(),
+    nombreEn: "",
+    subseccion: card.querySelector(".rev-sub").value,
+    descripcion: card.querySelector(".rev-desc").value.trim(),
+    ingredientes: card.querySelector(".rev-ings").value.split(",").map(s => s.trim()).filter(Boolean),
+    alergenos: [...card.querySelectorAll(".chip-al input")].map((inp, j) =>
+      inp.checked ? LISTADO_ALERGENOS[j].id : null).filter(Boolean),
+    tieneFoto: false
+  })).filter(p => p.nombre && p.ingredientes.length);
+
+  if(!nuevos.length){ alert("Cada plato necesita al menos nombre y un ingrediente."); return; }
+
+  const btn = $("btnEnviarRec");
+  btn.disabled = true; btn.textContent = "Enviando…";
+  try{
+    const dbl = conectarListado();
+    const ref = dbl.doc("restaurantes/" + LISTADO_CODIGO + "/datos/platos");
+    // Leer-añadir-guardar sobre el documento único del Recetario
+    const snap = await ref.get();
+    let existentes = [];
+    if(snap.exists){
+      try{ existentes = JSON.parse(snap.data().json || "[]"); }catch(e){ existentes = []; }
+    }
+    const nombresExistentes = new Set(existentes.map(p => normalizarTxt(p.nombre)));
+    let añadidos = 0, omitidos = 0;
+    nuevos.forEach(p => {
+      if(nombresExistentes.has(normalizarTxt(p.nombre))){ omitidos++; return; }
+      existentes.push(p); añadidos++;
+    });
+    if(añadidos){
+      await ref.set({ json: JSON.stringify(existentes), t: Date.now() });
+    }
+    cerrarRevision();
+    setEstado("Recetario: " + añadidos + " plato(s) enviados" + (omitidos ? " · " + omitidos + " omitidos (ya existían)" : "") + ".");
+  }catch(e){
+    console.error(e);
+    alert("No se pudo enviar al Recetario: " + e.message + "\nComprueba la conexión y las reglas de Firestore del proyecto listadiplatos.");
+  }finally{
+    btn.disabled = false; btn.textContent = "Enviar al Recetario";
+  }
 }
 
 // ---------- Exportar / Importar (copia a Drive vía descarga/compartir) ----------
@@ -1421,6 +1657,9 @@ window.addEventListener("afterprint", () => {
 renderBiblio();
 document.getElementById("modalEdit").addEventListener("click", e => {
   if(e.target.id === "modalEdit") cerrarEditor();
+});
+document.getElementById("modalRecetario").addEventListener("click", e => {
+  if(e.target.id === "modalRecetario") cerrarRevision();
 });
 (function(){
   const codigo = getCodigo();
